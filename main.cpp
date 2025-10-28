@@ -8,7 +8,6 @@ class DynamicArray {
 private:
 	struct temp {
 		T* memory;
-		size_t sizeOfEachElement;
 		size_t capacity;
 		size_t memoryUsage;
 		size_t size;
@@ -27,37 +26,27 @@ private:
 
 public:
 	DynamicArray() {
-		data.sizeOfEachElement = sizeof(T);
-		data.capacity = sizeof(T) * 16;
-		data.memory = new T[16];
-		data.memoryUsage = 0;
+		data.capacity = sizeof(T);
+		data.memory = new T[1];
 		elementShift = 0;
 		data.size = 0;
 	}
 	
 
-	void insert(T&& t) {
+	void insert(T& t) {
 		bool optimizationEnabled = false;
+		size_t elementSize = sizeof(T);
 
-		if (data.sizeOfEachElement <= 12) optimizationEnabled = false;
-		if (data.capacity < data.memoryUsage + data.sizeOfEachElement) {
-		   size_t newSize = DynamicArray::performance_growth(data.capacity, data.capacity + data.sizeOfEachElement);
+		if (elementSize <= 12) optimizationEnabled = true;
+		if (data.capacity < data.memoryUsage + elementSize) {
+		   size_t newSize = DynamicArray::performance_growth(data.capacity, data.capacity + elementSize);
 		   T* newMemoryBlock = new T[newSize];
 
-		   if (std::is_trivially_copyable_v<T>) {
-			   std::memcpy(newMemoryBlock, data.memory, data.memoryUsage);
-
-			   if (optimizationEnabled) newMemoryBlock[data.size] = std::forward<T>(t);
-			   if (!optimizationEnabled) std::memcpy(newMemoryBlock + data.size, &t, data.sizeOfEachElement);
-		   }
-		   else {
-			   if (optimizationEnabled) newMemoryBlock[data.size] = std::forward<T>(t);
-			   if (!optimizationEnabled) std::copy(&t, &t + 1, newMemoryBlock);
-		   }
-
+		   if (optimizationEnabled) newMemoryBlock[data.size] = std::forward<T>(t);
+		   if (!optimizationEnabled) std::copy(&t, &t + 1, newMemoryBlock);
 		   delete[] data.memory;
 
-		   data.capacity = newSize * data.sizeOfEachElement;
+		   data.capacity = newSize * elementSize;
 		   data.memoryUsage += data.sizeOfEachElement;
 		   data.memory = newMemoryBlock;
 		   elementShift = 0;
@@ -66,7 +55,7 @@ public:
 			if (optimizationEnabled) data.memory[data.size] = std::forward<T>(t);
 			if (!optimizationEnabled) std::copy(&t, &t + 1, data.memory + data.size);
 
-			data.memoryUsage += data.sizeOfEachElement;
+			data.memoryUsage += elementSize;
 		}
 
 		data.size++;
