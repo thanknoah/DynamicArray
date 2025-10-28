@@ -132,3 +132,6 @@ public:
 		delete[] data.memory;
 	}
 };
+
+// Example code for now
+// DynamicArray<int> myInts; myInts.insert(100); myInts.insert(200); myInts.get(0); myInts.remove(1); 
