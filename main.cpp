@@ -1,5 +1,6 @@
 #include <type_traits>
 #include <iostream>
+#include <cstring>
 
 
 template <typename T>
