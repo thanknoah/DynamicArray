@@ -36,7 +36,7 @@ public:
 	}
 	
 
-	void insert(T& t) {
+	void insert(T&& t) {
 		bool optimizationEnabled = false;
 
 		if (data.sizeOfEachElement <= 12) optimizationEnabled = false;
@@ -47,11 +47,11 @@ public:
 		   if (std::is_trivially_copyable_v<T>) {
 			   std::memcpy(newMemoryBlock, data.memory, data.memoryUsage);
 
-			   if (optimizationEnabled) newMemoryBlock[data.size] = std::move(t);
+			   if (optimizationEnabled) newMemoryBlock[data.size] = std::forward<T>(t);
 			   if (!optimizationEnabled) std::memcpy(newMemoryBlock + data.size, &t, data.sizeOfEachElement);
 		   }
 		   else {
-			   if (optimizationEnabled) newMemoryBlock[data.size] = std::move(t);
+			   if (optimizationEnabled) newMemoryBlock[data.size] = std::forward<T>(t);
 			   if (!optimizationEnabled) std::copy(&t, &t + 1, newMemoryBlock);
 		   }
 
@@ -63,7 +63,7 @@ public:
 		   elementShift = 0;
 		}
 		else {
-			if (optimizationEnabled) data.memory[data.size] = std::move(t);
+			if (optimizationEnabled) data.memory[data.size] = std::forward<T>(t);
 			if (!optimizationEnabled) std::copy(&t, &t + 1, data.memory + data.size);
 
 			data.memoryUsage += data.sizeOfEachElement;
