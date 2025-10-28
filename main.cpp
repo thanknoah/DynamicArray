@@ -1,7 +1,6 @@
 #include <type_traits>
 #include <iostream>
 
-
 template <typename T>
 class DynamicArray {
 
@@ -113,7 +112,7 @@ public:
 
 	T get(int x) {
 		if (x > data.size || x < 0 || data.size == 0)
-			std::cout << "Error!";
+			std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
 		int finalIndex;
 
