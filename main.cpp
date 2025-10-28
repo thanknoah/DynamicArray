@@ -36,7 +36,7 @@ public:
 	}
 	
 
-	void insert(T&& t) {
+	void insert(T& t) {
 		bool optimizationEnabled = false;
 
 		if (data.sizeOfEachElement <= 12) optimizationEnabled = false;
