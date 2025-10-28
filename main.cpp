@@ -1,6 +1,7 @@
 #include <type_traits>
 #include <iostream>
 
+
 template <typename T>
 class DynamicArray {
 
@@ -106,7 +107,12 @@ public:
 			return;
 
 		data.memory[x].~T();
-		elementShift++;
+		//elementShift++;
+
+		// STILL NEED TO optimize this
+		for (size_t i = x; i < data.size - 1; ++i)
+			data.memory[i] = std::move(data.memory[i + 1]);
+
 		data.size--;
 	}
 
@@ -114,16 +120,9 @@ public:
 		if (x > data.size || x < 0 || data.size == 0)
 			std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
-		int finalIndex;
-
-		if (x > x - elementShift)
-			finalIndex -= x;
-		else
-			finalIndex = x;
-
-		return data.memory[finalIndex];
+		return data.memory[x];
 	}
-
+	
 	inline size_t size() { return data.size; }
 	inline size_t capacity() { return data.capacity; }
 	inline size_t mem_usage() { return data.memoryUsage; }
@@ -132,6 +131,3 @@ public:
 		delete[] data.memory;
 	}
 };
-
-// Example code for now
-// DynamicArray<int> myInts; myInts.insert(100); myInts.insert(200); myInts.get(0); myInts.remove(1); 
