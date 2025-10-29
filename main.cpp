@@ -17,20 +17,17 @@ private:
 	int elementShift;
 	temp data;
 
-	inline size_t performance_growth(size_t currentCapacity, size_t minimumSize) {
-		while (currentCapacity < minimumSize) {
-			currentCapacity *= 2;
-		}
-
-		return currentCapacity;
+	inline size_t performance_growth(size_t currentCapacity) {
+			return currentCapacity *= 2;
 	}
 
 public:
 	DynamicArray() {
-		data.capacity = sizeof(T);
+		data.capacity = 1;
 		data.memory = new T[1];
 		elementShift = 0;
 		data.size = 0;
+		data.memoryUsage = 0;
 	}
 	
 
@@ -39,16 +36,23 @@ public:
 		size_t elementSize = sizeof(T);
 
 		if (elementSize <= 12) optimizationEnabled = true;
-		if (data.capacity < data.memoryUsage + elementSize) {
-		   size_t newSize = DynamicArray::performance_growth(data.capacity, data.capacity + elementSize);
+		if (data.capacity < data.size + 1) {
+		   size_t newSize = DynamicArray::performance_growth(data.capacity);
 		   T* newMemoryBlock = new T[newSize];
+		   
+		   if constexpr(std::is_trivially_copyable_v<T>) {
+		      std::memcpy(newMemoryBlock, data.memory, data.size * elementSize); // copies data byte by byte from old ptr to new ptr
+		   } else {
+		      std::move(data.move, data.memory + data.size, newMemoryBlock); // transfers each elements internal ptr to an index of new ptr 
+		   }
+
 
 		   if (optimizationEnabled) newMemoryBlock[data.size] = std::forward<T>(t);
 		   if (!optimizationEnabled) std::copy(&t, &t + 1, newMemoryBlock);
 		   delete[] data.memory;
 
-		   data.capacity = newSize * elementSize;
-		   data.memoryUsage += data.sizeOfEachElement;
+		   data.capacity = newSize;
+		   data.memoryUsage += (data.size + 1) * elementSize;
 		   data.memory = newMemoryBlock;
 		   elementShift = 0;
 		}
@@ -56,7 +60,7 @@ public:
 			if (optimizationEnabled) data.memory[data.size] = std::forward<T>(t);
 			if (!optimizationEnabled) std::copy(&t, &t + 1, data.memory + data.size);
 
-			data.memoryUsage += elementSize;
+			data.memoryUsage += (data.size + 1) * elementSize;
 		}
 
 		data.size++;
