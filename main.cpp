@@ -112,7 +112,7 @@ public:
 
 	T get(int x) {
 		if (x > data.size || x < 0 || data.size == 0)
-			std::runtime_error("DynamicArray error: tried to access out of bounds index.");
+			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
 		return data.memory[x];
 	}
