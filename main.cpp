@@ -52,7 +52,7 @@ public:
 		   delete[] data.memory;
 
 		   data.capacity = newSize;
-		   data.memoryUsage += (data.size + 1) * elementSize;
+		   data.memoryUsage += elementSize;
 		   data.memory = newMemoryBlock;
 		   elementShift = 0;
 		}
@@ -60,7 +60,7 @@ public:
 			if (optimizationEnabled) data.memory[data.size] = std::forward<T>(t);
 			if (!optimizationEnabled) std::copy(&t, &t + 1, data.memory + data.size);
 
-			data.memoryUsage += (data.size + 1) * elementSize;
+			data.memoryUsage += elementSize;
 		}
 
 		data.size++;
