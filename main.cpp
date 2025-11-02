@@ -1,7 +1,5 @@
 #include <type_traits>
 #include <vector>
-#include <chrono>
-#include <iostream>
 #include <cstring>
 
 // Notes: optimizationEnabled is where data type is less than or equal to 12 bytes, so i use std::move or = instead of memcpy for trivally copyable types
