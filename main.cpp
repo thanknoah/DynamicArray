@@ -3,8 +3,8 @@
 #include <cstring>
 #include <iostream>
 
-// Notes: optimizationEnabled is where data type is less than or equal to 12 bytes, so i use std::move or =
-// if optimizationEnabled is disabled then i use std::copy which will either copy (=) the value or use memcpy
+// Notes: optimizationEnabled is where data type is less than or equal to 12 bytes, so i use (=) / std::move
+// if optimizationEnabled is disabled then i use std::copy which will either copy the value or use memcpy depending on if its trivally copyale
 
 template <typename T>
 class DynamicArray {
@@ -43,7 +43,7 @@ public:
 				std::move(data.memory, data.memory + data.size, newMemoryBlock); // transfers each elements internal ptr to an index of new ptr 
 			}
 
-		    if (optimizationEnabled) newMemoryBlock[data.size] = t;
+		    if (optimizationEnabled) newMemoryBlock[data.size] = std::move(t);
 			if (!optimizationEnabled) std::copy(&t, &t + 1, newMemoryBlock);
 			delete[] data.memory;
 
@@ -52,7 +52,7 @@ public:
 			elementShift = 0;
 		}
 		else {
-			if (optimizationEnabled) data.memory[data.size] = t;
+			if (optimizationEnabled) data.memory[data.size] = std::move(t);
 		    if (!optimizationEnabled) std::copy(&t, &t + 1, data.memory);
 		}
 
