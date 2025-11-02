@@ -1,7 +1,10 @@
 #include <type_traits>
+#include <vector>
+#include <chrono>
 #include <iostream>
 #include <cstring>
 
+// Notes: optimizationEnabled is where data type is less than or equal to 12 bytes, so i use std::move or = instead of memcpy for trivally copyable types
 
 template <typename T>
 class DynamicArray {
@@ -17,10 +20,6 @@ private:
 	int elementShift;
 	temp data;
 
-	inline size_t performance_growth(size_t currentCapacity) {
-			return currentCapacity *= 2;
-	}
-
 public:
 	DynamicArray() {
 		data.capacity = 1;
@@ -29,7 +28,6 @@ public:
 		data.size = 0;
 		data.memoryUsage = 0;
 	}
-	
 
 	void insert(T& t) {
 		bool optimizationEnabled = false;
@@ -37,28 +35,28 @@ public:
 
 		if (elementSize <= 12) optimizationEnabled = true;
 		if (data.capacity < data.size + 1) {
-		   size_t newSize = DynamicArray::performance_growth(data.capacity);
-		   T* newMemoryBlock = new T[newSize];
-		   
-		   if constexpr(std::is_trivially_copyable_v<T>) {
-		      std::memcpy(newMemoryBlock, data.memory, data.size * elementSize); // copies data byte by byte from old ptr to new ptr
-		   } else {
-		      std::move(data.move, data.memory + data.size, newMemoryBlock); // transfers each elements internal ptr to an index of new ptr 
-		   }
+			size_t newSize = data.capacity * 2;
+			T* newMemoryBlock = new T[newSize];
 
+			if constexpr (std::is_trivially_copyable_v<T>) {
+				std::memcpy(newMemoryBlock, data.memory, data.size * elementSize); // copies data byte by byte from old ptr to new ptr
+			}
+			else {
+				std::move(data.memory, data.memory + data.size, newMemoryBlock); // transfers each elements internal ptr to an index of new ptr 
+			}
 
-		   if (optimizationEnabled) newMemoryBlock[data.size] = std::forward<T>(t);
-		   if (!optimizationEnabled) std::copy(&t, &t + 1, newMemoryBlock);
-		   delete[] data.memory;
+		    if (optimizationEnabled) newMemoryBlock[data.size] = t;
+			if (!optimizationEnabled) std::copy(&t, &t + 1, newMemoryBlock);
+			delete[] data.memory;
 
-		   data.capacity = newSize;
-		   data.memoryUsage += elementSize;
-		   data.memory = newMemoryBlock;
-		   elementShift = 0;
+			data.capacity = newSize;
+			data.memoryUsage += elementSize;
+			data.memory = newMemoryBlock;
+			elementShift = 0;
 		}
 		else {
-			if (optimizationEnabled) data.memory[data.size] = std::forward<T>(t);
-			if (!optimizationEnabled) std::copy(&t, &t + 1, data.memory + data.size);
+			if (optimizationEnabled) data.memory[data.size] = t;
+		    if (!optimizationEnabled) std::copy(&t, &t + 1, data.memory);
 
 			data.memoryUsage += elementSize;
 		}
@@ -66,24 +64,39 @@ public:
 		data.size++;
 	}
 
+	void insert(T&& t) {
+		bool optimizationEnabled = false;
+		size_t elementSize = sizeof(T);
 
-	/*
-	void shrink_to_fit() {
-		if (data.size == 0)
-			return
+		if (elementSize <= 12) optimizationEnabled = true;
 
-	    T * newMemoryBlock = new T[data.size];
-		if (std::is_trivially_copyable_v<T>) {
-			std::memcpy(newMemoryBlock, data.memory, data.memoryUsage);
+		if (data.capacity < data.size + 1) {
+			size_t newSize = data.capacity * 2;
+			T* newMemoryBlock = new T[newSize];
+
+			if constexpr (std::is_trivially_copyable_v<T>) {
+				std::memcpy(newMemoryBlock, data.memory, data.size * elementSize); // copies data byte by byte from old ptr to new ptr
+			}
+			else {
+				std::move(data.memory, data.memory + data.size, newMemoryBlock); // transfers each elements internal ptr to an index of new ptr 
+			}
+
+		    newMemoryBlock[data.size] = std::move(t);
+			delete[] data.memory;
+
+			data.capacity = newSize;
+			data.memoryUsage += elementSize;
+			data.memory = newMemoryBlock;
+			elementShift = 0;
 		}
 		else {
-			std::copy(data.memory, data.memoryUsage)
+			data.memory[data.size] = std::move(t);
+			data.memoryUsage += elementSize;
 		}
-	
+
+		data.size++;
 	}
-	*/
-	
-	
+
 	void reserve(int x) {
 		if (x < 0 || x < data.memoryUsage)
 			return;
@@ -101,26 +114,56 @@ public:
 			return;
 
 		data.memory[x].~T();
-		//elementShift++;
+		size_t elementSize = sizeof(T);
+		bool optimizationEnabled = false;
+		if (elementSize <= 12) optimizationEnabled = true;
 
-		// STILL NEED TO optimize this
-		for (size_t i = x; i < data.size - 1; ++i)
-			data.memory[i] = std::move(data.memory[i + 1]);
+		if constexpr (!std::is_trivially_copyable_v<T>) {
+			for (size_t i = x; i < data.size - 1; ++i)
+				data.memory[i] = std::move(data.memory[i + 1]);
+		}
+		else { 
+			if (optimizationEnabled) {
+				for (size_t i = x; i < data.size - 1; ++i)
+					data.memory[i] = data.memory[i + 1];
+			}
+			else {
+                for (size_t i = x; i < data.size - 1; ++i)
+				    std::memmove(&data.memory[i], &data.memory[i + 1], sizeof(T));
+			}
+		}
 
 		data.size--;
 	}
 
-	T get(int x) {
+	inline T* begin() { return data.memory; }
+	inline T* end() { return data.memory + data.size; }
+	inline size_t size() { return data.size; }
+	inline size_t capacity() { return data.capacity; }
+	inline size_t mem_usage() { return data.memoryUsage; }
+
+	inline T get(int x) {
 		if (x > data.size || x < 0 || data.size == 0)
 			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
 		return data.memory[x];
 	}
-	
-	inline size_t size() { return data.size; }
-	inline size_t capacity() { return data.capacity; }
-	inline size_t mem_usage() { return data.memoryUsage; }
-    
+
+
+	inline T& operator[](size_t x) {
+		if (x > data.size || x < 0 || data.size == 0)
+			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
+
+		return data.memory[x];
+	}
+
+	inline const T& operator[](size_t x) const {
+		if (x > data.size || x < 0 || data.size == 0)
+			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
+
+		return data.memory[x];
+	}
+
 	~DynamicArray() {
 		delete[] data.memory;
 	}
