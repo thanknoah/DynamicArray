@@ -12,7 +12,6 @@ private:
 	struct temp {
 		T* memory;
 		size_t capacity;
-		size_t memoryUsage;
 		size_t size;
 	};
 
@@ -25,10 +24,9 @@ public:
 		data.memory = new T[1];
 		elementShift = 0;
 		data.size = 0;
-		data.memoryUsage = 0;
 	}
 
-	void insert(T& t) {
+	void insert(const T& t) {
 		bool optimizationEnabled = false;
 		size_t elementSize = sizeof(T);
 
@@ -49,55 +47,19 @@ public:
 			delete[] data.memory;
 
 			data.capacity = newSize;
-			data.memoryUsage += elementSize;
 			data.memory = newMemoryBlock;
 			elementShift = 0;
 		}
 		else {
 			if (optimizationEnabled) data.memory[data.size] = t;
 		    if (!optimizationEnabled) std::copy(&t, &t + 1, data.memory);
-
-			data.memoryUsage += elementSize;
-		}
-
-		data.size++;
-	}
-
-	void insert(T&& t) {
-		bool optimizationEnabled = false;
-		size_t elementSize = sizeof(T);
-
-		if (elementSize <= 12) optimizationEnabled = true;
-
-		if (data.capacity < data.size + 1) {
-			size_t newSize = data.capacity * 2;
-			T* newMemoryBlock = new T[newSize];
-
-			if constexpr (std::is_trivially_copyable_v<T>) {
-				std::memcpy(newMemoryBlock, data.memory, data.size * elementSize); // copies data byte by byte from old ptr to new ptr
-			}
-			else {
-				std::move(data.memory, data.memory + data.size, newMemoryBlock); // transfers each elements internal ptr to an index of new ptr 
-			}
-
-		    newMemoryBlock[data.size] = std::move(t);
-			delete[] data.memory;
-
-			data.capacity = newSize;
-			data.memoryUsage += elementSize;
-			data.memory = newMemoryBlock;
-			elementShift = 0;
-		}
-		else {
-			data.memory[data.size] = std::move(t);
-			data.memoryUsage += elementSize;
 		}
 
 		data.size++;
 	}
 
 	void reserve(int x) {
-		if (x < 0 || x < data.memoryUsage)
+		if (x < 0 || x < data.size)
 			return;
 
 		T* newMemoryBlock = new T[x];
@@ -121,14 +83,14 @@ public:
 			for (size_t i = x; i < data.size - 1; ++i)
 				data.memory[i] = std::move(data.memory[i + 1]);
 		}
-		else { 
+		else {
 			if (optimizationEnabled) {
 				for (size_t i = x; i < data.size - 1; ++i)
 					data.memory[i] = data.memory[i + 1];
 			}
 			else {
-                for (size_t i = x; i < data.size - 1; ++i)
-				    std::memmove(&data.memory[i], &data.memory[i + 1], sizeof(T));
+				for (size_t i = x; i < data.size - 1; ++i)
+					std::memmove(&data.memory[i], &data.memory[i + 1], sizeof(T));
 			}
 		}
 
@@ -139,7 +101,6 @@ public:
 	inline T* end() { return data.memory + data.size; }
 	inline size_t size() { return data.size; }
 	inline size_t capacity() { return data.capacity; }
-	inline size_t mem_usage() { return data.memoryUsage; }
 
 	inline T get(int x) {
 		if (x > data.size || x < 0 || data.size == 0)
