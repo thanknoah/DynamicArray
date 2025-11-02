@@ -2,6 +2,7 @@
 #include <vector>
 #include <cstring>
 #include <iostream>
+#include <chrono>
 
 // Notes: optimizationEnabled is where data type is less than or equal to 12 bytes, so i use (=) / std::move
 // if optimizationEnabled is disabled then i use std::copy which will either copy the value or use memcpy depending on if its trivally copyale
@@ -28,45 +29,52 @@ public:
 	}
 
 	void insert(const T& t) {
-		bool optimizationEnabled = false;
+		bool optimizationEnabled = (sizeof(T) <= 12);
 		size_t elementSize = sizeof(T);
+		T* memoryBlock = nullptr;
 
-		if (elementSize <= 12) optimizationEnabled = true;
 		if (data.capacity < data.size + 1) {
 			size_t newSize = data.capacity * 2;
-			T* newMemoryBlock = new T[newSize];
+			memoryBlock = new T[newSize];
 
 			if constexpr (std::is_trivially_copyable_v<T>) {
-				std::memcpy(newMemoryBlock, data.memory, data.size * elementSize); // copies data byte by byte from old ptr to new ptr
+				std::memcpy(memoryBlock, data.memory, data.size * elementSize);
 			}
 			else {
-				std::move(data.memory, data.memory + data.size, newMemoryBlock); // transfers each elements internal ptr to an index of new ptr 
+				std::move(data.memory, data.memory + data.size, memoryBlock);
 			}
 
-		    if (optimizationEnabled) newMemoryBlock[data.size] = std::move(t);
-			if (!optimizationEnabled) std::copy(&t, &t + 1, newMemoryBlock);
 			delete[] data.memory;
 
 			data.capacity = newSize;
-			data.memory = newMemoryBlock;
-			elementShift = 0;
+			data.memory = memoryBlock;
+		}
+
+		if (memoryBlock == nullptr) memoryBlock = data.memory;
+		if constexpr (std::is_trivially_copyable_v<T>) {
+			if (optimizationEnabled) {
+				memoryBlock[data.size] = t;
+			}
+			else {
+				std::memcpy(memoryBlock + data.size, &t, elementSize);
+			}
 		}
 		else {
-			if (optimizationEnabled) data.memory[data.size] = std::move(t);
-		    if (!optimizationEnabled) std::copy(&t, &t + 1, data.memory);
+			memoryBlock[data.size] = std::move(t);
 		}
 
 		data.size++;
 	}
 
+
 	void reserve(int x) {
 		if (x < 0 || x < data.size)
 			return;
 
-		T* newMemoryBlock = new T[x];
+		T* memoryBlock = new T[x];
 		delete[] data.memory;
 
-		data.memory = newMemoryBlock;
+		data.memory = memoryBlock;
 		data.capacity = x;
 		elementShift = 0;
 	}
@@ -83,6 +91,8 @@ public:
 		if constexpr (!std::is_trivially_copyable_v<T>) {
 			for (size_t i = x; i < data.size - 1; ++i)
 				data.memory[i] = std::move(data.memory[i + 1]);
+
+			data.memory[data.size - 1].~T();
 		}
 		else {
 			if (optimizationEnabled) {
@@ -103,7 +113,7 @@ public:
 	inline size_t size() { return data.size; }
 	inline size_t capacity() { return data.capacity; }
 
-	inline T get(int x) {
+	inline T get(size_t x) {
 		if (x > data.size || x < 0 || data.size == 0)
 			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
