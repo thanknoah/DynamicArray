@@ -3,7 +3,8 @@
 #include <cstring>
 #include <iostream>
 
-// Notes: optimizationEnabled is where data type is less than or equal to 12 bytes, so i use std::move or = instead of memcpy for trivally copyable types
+// Notes: optimizationEnabled is where data type is less than or equal to 12 bytes, so i use std::move or =
+// if optimizationEnabled is disabled then i use std::copy which will either copy (=) the value or use memcpy
 
 template <typename T>
 class DynamicArray {
