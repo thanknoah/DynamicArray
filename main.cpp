@@ -2,7 +2,6 @@
 #include <cstring>
 #include <iostream>
 
-
 template <typename T>
 class DynamicArray {
 
@@ -11,7 +10,6 @@ private:
 		T* memory;
 		size_t capacity;
 		size_t size;
-		size_t elementSize;
 	};
 
 	temp data;
@@ -23,46 +21,49 @@ public:
 		data.size = 0;
 	}
 
-	void insert(T& t) {
+	template <typename U>
+	void insert(U&& t) {
 		T* memoryBlock = nullptr;
 		size_t elementSize = sizeof(T);
 
 		if (data.capacity < data.size + 1) {
 			if (data.capacity == 0) data.capacity = 1;
 
-			size_t newSize = data.capacity * 2;
-			std::byte* tempPtr = new std::byte[newSize * elementSize];
+			size_t newCapacity = data.capacity * 2;
+			std::byte* tempPtr = new std::byte[newCapacity * elementSize];
 			memoryBlock = reinterpret_cast<T*>(tempPtr);
 
 			if constexpr (std::is_trivially_copyable_v<T>) {
 				std::memcpy(memoryBlock, data.memory, data.size * elementSize);
 			}
 			else {
-				for (int x = 0; x < data.size; ++x) {
+				for (size_t x = 0; x < data.size; ++x) {
 					new (&memoryBlock[x]) T(std::move(data.memory[x]));
 					data.memory[x].~T();
 				}
 			}
 
 			delete[] reinterpret_cast<std::byte*>(data.memory);
-			data.capacity = newSize;
+			data.capacity = newCapacity;
 			data.memory = memoryBlock;
 		}
 		else {
 			memoryBlock = data.memory;
 		}
 
-		if constexpr (std::is_trivially_copyable_v<T>) 
-		    std::memcpy(memoryBlock + data.size, &t, elementSize);
-		else 
-			new (&memoryBlock[data.size]) T(std::move(t));
+		if constexpr (std::is_trivially_copyable_v<T>) {
+			std::memcpy(memoryBlock + data.size, &t, elementSize);
+		}
+		else {
+			new (&memoryBlock[data.size]) T(std::forward<U>(t));
+		}
 
 		data.size++;
 	}
 
 
 	void reserve(int x) {
-		if (x < 0)
+		if (x < 0 || data.size > x)
 			return;
 
 		size_t elementSize = sizeof(T);
@@ -73,9 +74,9 @@ public:
 				std::memcpy(memoryBlock, data.memory, data.size * elementSize);
 			}
 			else {
-				for (int x = 0; x < data.size; ++x) {
-					new (&memoryBlock[x]) T(std::move(data.memory[x]));
-					data.memory[x].~T();
+				for (int y = 0; y < data.size; ++y) {
+					new (&memoryBlock[y]) T(std::move(data.memory[y]));
+					data.memory[y].~T();
 				}
 			}
 		}
@@ -90,10 +91,6 @@ public:
 		if (x >= data.size || data.memory == nullptr)
 			return;
 
-		if constexpr (!std::is_trivially_destructible_v<T>) {
-			data.memory[x].~T();
-		}
-
 		if constexpr (std::is_trivially_copyable_v<T>) {
 			std::memmove(&data.memory[x], &data.memory[x + 1], (data.size - x - 1) * elementSize);
 		}
@@ -104,7 +101,10 @@ public:
 			}
 		}
 
-		
+		if constexpr (!std::is_trivially_destructible_v<T>) {
+			data.memory[data.size - 1].~T();
+		}
+
 		data.size--;
 	}
 
@@ -113,7 +113,14 @@ public:
 	inline size_t size() { return data.size; }
 	inline size_t capacity() { return data.capacity; }
 
-	inline T get(size_t x) {
+	inline T& get(size_t x) {
+		if (x >= data.size || data.memory == nullptr)
+			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
+
+		return data.memory[x];
+	}
+
+	inline const T& get(size_t x) const {
 		if (x >= data.size || data.memory == nullptr)
 			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
