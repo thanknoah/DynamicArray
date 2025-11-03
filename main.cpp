@@ -1,154 +1,169 @@
 #include <type_traits>
+#include <utility>
 #include <cstring>
-#include <iostream>
 
 template <typename T>
 class DynamicArray {
 
 private:
-	struct temp {
-		T* memory;
-		size_t capacity;
-		size_t size;
-	};
-
-	temp data;
+	T* memory = nullptr;
+	size_t capacity = 0;
+	size_t size = 0;
 
 public:
-	DynamicArray() {
-		data.capacity = 0;
-		data.memory = nullptr;
-		data.size = 0;
+	DynamicArray() = default;
+	DynamicArray(size_t x) {
+		capacity = x;
+		memory = reinterpret_cast<T*>(new std::byte[x * sizeof(T)]);
+		size = 0;
 	}
 
 	template <typename U>
 	void insert(U&& t) {
-		T* memoryBlock = nullptr;
 		size_t elementSize = sizeof(T);
 
-		if (data.capacity < data.size + 1) {
-			if (data.capacity == 0) data.capacity = 1;
-
-			size_t newCapacity = data.capacity * 2;
-			std::byte* tempPtr = new std::byte[newCapacity * elementSize];
-			memoryBlock = reinterpret_cast<T*>(tempPtr);
-
-			if constexpr (std::is_trivially_copyable_v<T>) {
-				std::memcpy(memoryBlock, data.memory, data.size * elementSize);
-			}
-			else {
-				for (size_t x = 0; x < data.size; ++x) {
-					new (&memoryBlock[x]) T(std::move(data.memory[x]));
-					data.memory[x].~T();
-				}
-			}
-
-			delete[] reinterpret_cast<std::byte*>(data.memory);
-			data.capacity = newCapacity;
-			data.memory = memoryBlock;
-		}
-		else {
-			memoryBlock = data.memory;
+		if (capacity < size + 1) {
+			if (capacity == 0) capacity = 1;
+			size_t newCapacity = capacity * 2;
+			reserve(newCapacity);
 		}
 
 		if constexpr (std::is_trivially_copyable_v<T>) {
-			std::memcpy(memoryBlock + data.size, &t, elementSize);
+			std::copy_n(&t, 1, memory + size);
 		}
 		else {
-			new (&memoryBlock[data.size]) T(std::forward<U>(t));
+			new (&memory[size]) T(std::forward<U>(t));
 		}
 
-		data.size++;
+		size++;
+	}
+
+	void shrink_capacity_to_size() {
+		reserve(size);
 	}
 
 
-	void reserve(int x) {
-		if (x < 0 || data.size > x)
+	void reserve(size_t x) {
+		if (x < 0 || size > x)
 			return;
 
 		size_t elementSize = sizeof(T);
 		T* memoryBlock = reinterpret_cast<T*>(new std::byte[x * elementSize]);
 
-		if (data.memory != nullptr) {
+		if (memory != nullptr) {
 			if constexpr (std::is_trivially_copyable_v<T>) {
-				std::memcpy(memoryBlock, data.memory, data.size * elementSize);
+				std::copy_n(memory, size, memoryBlock);
 			}
 			else {
-				for (int y = 0; y < data.size; ++y) {
-					new (&memoryBlock[y]) T(std::move(data.memory[y]));
-					data.memory[y].~T();
+				for (size_t y = 0; y < size; ++y) {
+					new (&memoryBlock[y]) T(std::move(memory[y]));
+					memory[y].~T();
 				}
 			}
 		}
 
-		delete[] reinterpret_cast<std::byte*>(data.memory);
-		data.capacity = x;
-		data.memory = memoryBlock;
+		delete[] reinterpret_cast<std::byte*>(memory);
+		capacity = x;
+		memory = memoryBlock;
 	}
 
-	void remove(int x) {
+	// Doesnt allow capacity to be shrinked for now, maybe later on
+	void resize(size_t x) {
+		if (x < 0 || size > x)
+			return;
+
 		size_t elementSize = sizeof(T);
-		if (x >= data.size || data.memory == nullptr)
+		T* memoryBlock = reinterpret_cast<T*>(new std::byte[x * elementSize]);
+
+		if (memory != nullptr) {
+			if constexpr (std::is_trivially_copyable_v<T>) {
+				std::copy_n(memory, size, memoryBlock);
+			}
+			else {
+				for (size_t y = 0; y < x; ++y) {
+					if (size > y) {
+						new (&memoryBlock[y]) T(std::move(memory[y])); // intializing construct and moving memory[y] into it
+						memory[y].~T();
+					}
+					else {
+						new (&memoryBlock[y]) T(); // intializing empty construct so can be modified later
+					}
+				}
+			}
+		}
+		else {
+			for (size_t y = 0; y < x; ++y) {
+				new (&memoryBlock[y]) T(); // intializing empty construct
+			}
+		}
+
+		delete[] reinterpret_cast<std::byte*>(memory);
+		capacity = x;
+		size = x;
+		memory = memoryBlock;
+	}
+
+	void remove(size_t x) {
+		size_t elementSize = sizeof(T);
+		if (x >= size || memory == nullptr)
 			return;
 
 		if constexpr (std::is_trivially_copyable_v<T>) {
-			std::memmove(&data.memory[x], &data.memory[x + 1], (data.size - x - 1) * elementSize);
+			std::memmove(&memory[x], &memory[x + 1], (size - x - 1) * elementSize);
 		}
 		else {
-			for (size_t j = x; j < data.size - 1; ++j) {
-				new (&data.memory[j]) T(std::move(data.memory[j + 1]));
-			    data.memory[j + 1].~T(); 
+			for (size_t j = x; j < size - 1; ++j) {
+				new (&memory[j]) T(std::move(memory[j + 1]));
+			    memory[j + 1].~T(); 
 			}
 		}
 
 		if constexpr (!std::is_trivially_destructible_v<T>) {
-			data.memory[data.size - 1].~T();
+			memory[size - 1].~T();
 		}
 
-		data.size--;
+		size--;
 	}
 
-	inline T* begin() { return data.memory; }
-	inline T* end() { return data.memory + data.size; }
-	inline size_t size() { return data.size; }
-	inline size_t capacity() { return data.capacity; }
+	inline T* begin() { return memory; }
+	inline T* end() { return memory + size; }
+	inline size_t size_get() { return size; }
+	inline size_t capacity_get() { return capacity; }
 
 	inline T& get(size_t x) {
-		if (x >= data.size || data.memory == nullptr)
+		if (x >= size || memory == nullptr)
 			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
-		return data.memory[x];
+		return memory[x];
 	}
 
 	inline const T& get(size_t x) const {
-		if (x >= data.size || data.memory == nullptr)
+		if (x >= size || memory == nullptr)
 			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
-		return data.memory[x];
+		return memory[x];
 	}
 
 
 	inline T& operator[](size_t x) {
-		if (x >= data.size || data.memory == nullptr)
+		if (x >= size || memory == nullptr)
 			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
-		return data.memory[x];
+		return memory[x];
 	}
 
 	inline const T& operator[](size_t x) const {
-		if (x >= data.size || data.memory == nullptr)
+		if (x >= size || memory == nullptr)
 			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
 
-		return data.memory[x];
+		return memory[x];
 	}
 
 	~DynamicArray() {
-		if (data.memory == nullptr) return;
 		if constexpr (!std::is_trivially_destructible_v<T>) {
-			for (size_t i = 0; i < data.size; ++i)
-				data.memory[i].~T();
+			for (size_t i = 0; i < size; ++i) memory[i].~T();
 		}
 
-		delete[] reinterpret_cast<std::byte*>(data.memory);
+		delete[] reinterpret_cast<std::byte*>(memory);
 	}
 };
