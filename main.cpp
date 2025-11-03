@@ -130,34 +130,10 @@ public:
 	inline size_t size_get() { return size; }
 	inline size_t capacity_get() { return capacity; }
 
-	inline T& get(size_t x) {
-		if (x >= size || memory == nullptr)
-			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
-
-		return memory[x];
-	}
-
-	inline const T& get(size_t x) const {
-		if (x >= size || memory == nullptr)
-			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
-
-		return memory[x];
-	}
-
-
-	inline T& operator[](size_t x) {
-		if (x >= size || memory == nullptr)
-			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
-
-		return memory[x];
-	}
-
-	inline const T& operator[](size_t x) const {
-		if (x >= size || memory == nullptr)
-			throw std::runtime_error("DynamicArray error: tried to access out of bounds index.");
-
-		return memory[x];
-	}
+	inline T& get(size_t x) { return memory[x]; }
+	inline const T& get(size_t x) const { return memory[x]; }
+	inline T& operator[](size_t x) { return memory[x]; }
+	inline const T& operator[](size_t x) const { return memory[x]; }
 
 	~DynamicArray() {
 		if constexpr (!std::is_trivially_destructible_v<T>) {
