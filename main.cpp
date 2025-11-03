@@ -1,6 +1,7 @@
 #include <type_traits>
 #include <utility>
 #include <cstring>
+#include <iostream>
 
 template <typename T>
 class DynamicArray {
