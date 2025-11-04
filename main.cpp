@@ -39,11 +39,6 @@ public:
 		size++;
 	}
 
-	void shrink_capacity_to_size() {
-		reserve(size);
-	}
-
-
 	void reserve(size_t x) {
 		if (x < 0 || size > x)
 			return;
@@ -126,6 +121,7 @@ public:
 		size--;
 	}
 
+    void shrink_capacity_to_size() { reserve(size); }
 	inline T* begin() { return memory; }
 	inline T* end() { return memory + size; }
 	inline size_t size_get() { return size; }
