@@ -18,9 +18,11 @@ public:
 		memory = reinterpret_cast<T*>(new std::byte[x * sizeof(T)]); // only if user calls DynamicArray<T>(x); then it allocates sizeof(T) * X amount of bytes of uninitalised memory
 		size = 0;
 	}
+
 	DynamicArray(const DynamicArray& other) {
 		reserve(other.capacity, other.size, other.memory); // reserve has addictional functionality, so it can copy from dynamic array to dynamic array
 	}
+
 	DynamicArray(DynamicArray&& other) noexcept {
 		memory = other.memory;
 	    size = other.size;
@@ -45,6 +47,7 @@ public:
 		}
 		return *this;
 	}
+
 	DynamicArray& operator=(const DynamicArray& other) {
 		if (this != &other) {
 			reserve(other.capacity, other.size, other.memory);
